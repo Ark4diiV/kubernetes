@@ -1,0 +1,114 @@
+---
+- name: Upgrade Ubuntu
+  ansible.builtin.apt:
+    update_cache: 
+    upgrade: dist
+    autoclean: true
+    autoremove: true
+
+- name: Purge snapd
+  ansible.builtin.apt:
+    name: snapd
+    state: absent
+    purge: true
+
+- name: Delete snapd dir
+  ansible.builtin.file:
+    state: absent
+    path: /snap
+
+- name: Install containerd
+  ansible.builtin.apt:
+    name: containerd
+    state: latest
+    update_cache: true
+
+- name: Disable SWAP since kubernetes can't work with swap enabled (1/2)
+  ansible.builtin.command: swapoff -a
+  changed_when: false
+
+- name: Disable SWAP in fstab since kubernetes can't work with swap enabled (2/2)
+  ansible.builtin.replace:
+    path: /etc/fstab
+    regexp: '^([^#].*?\sswap\s+sw\s+.*)$'
+    replace: '# \1'
+
+- name: Copy containerd config
+  ansible.builtin.copy:
+    src: containerd.conf
+    dest: /etc/modules-load.d/containerd.conf
+    mode: 0755
+
+- name: Add overlay to kernel
+  community.general.modprobe:
+    name: overlay
+    state: present
+
+- name: Add br_netfilter to kernel
+  community.general.modprobe:
+    name: br_netfilter
+    state: present
+
+- copy:
+    src: 99-kubernetes-cri.conf
+    dest: /etc/modules-load.d/99-kubernetes-cri.conf
+
+- ansible.posix.sysctl:
+    name: net.ipv4.ip_forward
+    value: '1'
+    sysctl_set: true
+
+- name: Sysctl apply
+  shell: sysctl --system
+
+- name: Create a directory for containerd
+  ansible.builtin.file:
+    path: /etc/containerd
+    state: directory
+
+- name: Copy containerd config
+  ansible.builtin.copy:
+    src: config.toml
+    dest: /etc/containerd/config.toml
+
+- name: Enable containerd
+  ansible.builtin.systemd: 
+    name: containerd
+    state: restarted
+    enabled: true
+
+- name: Add an Apt signing key, uses Kubernetes
+  ansible.builtin.apt_key:
+    url: https://packages.cloud.google.com/apt/doc//apt-key.gpg.asc
+    state: present
+
+- name: Add specified repository into sources list
+  ansible.builtin.apt_repository:
+    repo: deb http://apt.kubernetes.io/ kubernetes-xenial main
+    state: present
+
+- name: Kubernetes packages
+  ansible.builtin.apt:
+    name: "{{ packages }}"
+    state: present
+    update_cache: true
+  vars:
+    packages:
+    - kubelet=1.24.3-00
+    - kubeadm=1.24.3-00
+    - kubectl=1.24.3-00
+
+- name: kubelet hold
+  ansible.builtin.dpkg_selections:
+    name: kubelet
+    selection: hold
+
+- name: kubeadm hold
+  ansible.builtin.dpkg_selections:
+    name: kubeadm
+    selection: hold
+
+- name: kubectl hold
+  ansible.builtin.dpkg_selections:
+    name: kubectl
+    selection: hold

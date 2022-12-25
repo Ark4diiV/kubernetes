@@ -1,0 +1,4 @@
+---
+pod_network_cidr: 10.17.0.0/16
+
+service_network_cidr: 192.168.219.0/24
