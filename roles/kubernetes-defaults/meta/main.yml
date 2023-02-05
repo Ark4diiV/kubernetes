@@ -1,0 +1,15 @@
+---
+galaxy_info:
+  author: Ark4diiV
+  description: Defaults for Kubernetes nodes
+  company: NoName
+  license: MIT
+  role_name: kubernetes-defaults
+  namespace: dev
+  min_ansible_version: "2.14.0"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - all
+  galaxy_tags: []
+dependencies: []

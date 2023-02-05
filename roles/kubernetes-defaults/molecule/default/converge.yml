@@ -1,0 +1,8 @@
+---
+- name: Converge
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: "Include arole_linux_upgrade"
+      ansible.builtin.include_role:
+        name: "arole_linux_upgrade"
